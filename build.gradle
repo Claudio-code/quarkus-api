@@ -1,6 +1,16 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.flywaydb:flyway-database-oracle:9.19.1'
+    }
+}
+
 plugins {
     id 'java'
     id 'io.quarkus'
+    id "org.flywaydb.flyway" version "9.19.1"
 }
 
 repositories {
@@ -12,8 +22,38 @@ dependencies {
     implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
     implementation 'io.quarkus:quarkus-arc'
     implementation 'io.quarkus:quarkus-resteasy-reactive'
+    implementation 'io.quarkus:quarkus-resteasy-reactive-jackson'
+
+    implementation 'io.quarkus:quarkus-smallrye-reactive-messaging-rabbitmq'
+
+    implementation 'io.quarkus:quarkus-smallrye-reactive-messaging-kafka'
+    implementation 'io.quarkus:quarkus-kafka-streams'
+
+    annotationProcessor 'io.quarkus:quarkus-panache-common:3.1.0.Final'
+    implementation 'io.quarkus:quarkus-hibernate-orm-panache'
+    implementation 'io.quarkus:quarkus-jdbc-oracle'
+
+    implementation 'io.quarkus:quarkus-flyway'
+    implementation 'org.flywaydb:flyway-database-oracle:9.19.1'
+    implementation 'org.flywaydb:flyway-core'
+
+    compileOnly 'org.projectlombok:lombok:1.18.26'
+    annotationProcessor 'org.projectlombok:lombok:1.18.26'
+
+    testImplementation 'io.quarkus:quarkus-flyway'
+    testImplementation 'org.flywaydb:flyway-database-oracle:9.19.1'
+    testImplementation 'org.flywaydb:flyway-core'
+    testCompileOnly 'org.projectlombok:lombok:1.18.26'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.26'
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
+}
+
+flyway {
+    url = System.getenv('FLYWAY_DB') ?: 'jdbc:oracle:thin:@localhost:1521'
+    user = System.getenv('FLYWAY_USER') ?: 'system'
+    password = System.getenv('FLYWAY_PASS') ?: 'oracle'
+    schemas = ['XE']
 }
 
 group 'com.example'

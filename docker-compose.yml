@@ -6,4 +6,106 @@ services:
     build: .
     ports:
       - "8080:8080"
+    networks:
+      - quarkus_net
+    depends_on:
+      - quarkus-oracle
 
+  quarkus-oracle:
+    container_name: quarkus-oracle
+    image: gvenzl/oracle-xe
+    ports:
+      - 1521:1521
+    volumes:
+      - quarkus_oracle_database:/opt/oracle/oradata
+    environment:
+      - ORACLE_ALLOW_REMOTE=true
+      - ORACLE_ENABLE_XDB=true
+      - ORACLE_PASSWORD=oracle
+    networks:
+      - quarkus_net
+
+  quarkus-kafka-ui:
+    image: consdata/kouncil:1.6-SNAPSHOT
+    container_name: quarkus-kafka-ui
+    ports:
+      - "80:8080"
+    environment:
+      bootstrapServers: quarkus-kafka:19092
+    networks:
+      - quarkus_net
+    depends_on:
+      - quarkus-zookeeper
+      - quarkus-kafka
+
+  quarkus-zookeeper:
+    container_name: quarkus-zookeeper
+    image: zookeeper:latest
+    ports:
+      - "2182:2181"
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: mntr,conf,ruok
+    networks:
+      - quarkus_net
+
+  quarkus-kafka:
+    container_name: quarkus-kafka
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - quarkus-zookeeper
+    networks:
+      - quarkus_net
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://quarkus-kafka:19092,LISTENER_DOCKER_EXTERNAL://quarkus-kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_DOCKER_INTERNAL
+      KAFKA_CREATE_TOPICS: "external-out:1:1,external-in:1:1,internal-in:1:1"
+      KAFKA_ZOOKEEPER_CONNECT: "quarkus-zookeeper:2181"
+      KAFKA_BROKER_ID: 1
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  quarkus-control-center:
+    container_name: quarkus-control-center
+    image: confluentinc/cp-enterprise-control-center:6.0.1
+    hostname: control-center
+    depends_on:
+      - quarkus-kafka
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'quarkus-kafka:19092'
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_CONNECT_CLUSTER: http://kafka-connect:8083
+      PORT: 9021
+    networks:
+      - quarkus_net
+
+  quarkus-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: quarkus-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - quarkus_rabbitmq_database:/var/lib/rabbitmq/
+      - quarkus_rabbitmq_log_database:/var/log/rabbitmq
+    networks:
+      - quarkus_net
+
+volumes:
+  quarkus_oracle_database:
+    driver: local
+  quarkus_rabbitmq_log_database:
+    driver: local
+  quarkus_rabbitmq_database:
+    driver: local
+
+
+networks:
+  quarkus_net:
+    driver: bridge
