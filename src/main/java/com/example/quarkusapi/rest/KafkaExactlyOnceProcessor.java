@@ -28,7 +28,6 @@ public class KafkaExactlyOnceProcessor {
 
     public void send() {
 
-        quoteRequestEmitter.send("dqwd");
     }
 
     private final Random random = new Random();
